@@ -13,7 +13,7 @@ public record ScooterDto(
     DateTime CreatedAt)
 {
     public static ScooterDto FromDomainModel(Scooter scooter) => new(
-        scooter.Id,
+        scooter.Id.Value,
         scooter.Model,
         scooter.SerialNumber,
         scooter.BatteryPercent,

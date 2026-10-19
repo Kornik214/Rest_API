@@ -1,6 +1,7 @@
 using Application.Common.Interfaces.Queries;
 using Application.Common.Interfaces.Repositories;
 using Domain.Scooters;
+using LanguageExt;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence.Repositories;
@@ -10,12 +11,18 @@ public class ScooterRepository(ApplicationDbContext context) : IScooterRepositor
     public async Task<IReadOnlyList<Scooter>> GetAll(CancellationToken cancellationToken) =>
         await context.Scooters.AsNoTracking().ToListAsync(cancellationToken);
 
-    public async Task<Scooter?> GetById(Guid id, CancellationToken cancellationToken) =>
-        await context.Scooters.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    public async Task<Option<Scooter>> GetById(ScooterId id, CancellationToken cancellationToken)
+    {
+        var scooter = await context.Scooters.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        return scooter ?? Option<Scooter>.None;
+    }
 
-    public async Task<Scooter?> GetBySerialNumber(string serialNumber, CancellationToken cancellationToken) =>
-        await context.Scooters.FirstOrDefaultAsync(
+    public async Task<Option<Scooter>> GetBySerialNumber(string serialNumber, CancellationToken cancellationToken)
+    {
+        var scooter = await context.Scooters.FirstOrDefaultAsync(
             x => x.SerialNumber.ToLower() == serialNumber.ToLower(), cancellationToken);
+        return scooter ?? Option<Scooter>.None;
+    }
 
     public async Task<Scooter> Add(Scooter scooter, CancellationToken cancellationToken)
     {

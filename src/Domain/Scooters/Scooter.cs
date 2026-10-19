@@ -2,7 +2,7 @@
 
 public class Scooter
 {
-    public Guid Id { get; }
+    public ScooterId Id { get; }
 
     public string Model { get; private set; }
 
@@ -19,7 +19,7 @@ public class Scooter
     public DateTime CreatedAt { get; }
 
     private Scooter(
-        Guid id,
+        ScooterId id,
         string model,
         string serialNumber,
         int batteryPercent,
@@ -39,7 +39,7 @@ public class Scooter
     }
 
     public static Scooter New(
-        Guid id,
+        ScooterId id,
         string model,
         string serialNumber,
         int batteryPercent,

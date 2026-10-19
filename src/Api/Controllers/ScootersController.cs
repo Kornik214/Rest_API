@@ -1,6 +1,8 @@
 using Api.Dtos;
+using Api.Modules.Errors;
 using Application.Common.Interfaces.Queries;
 using Application.Scooters.Commands;
+using Domain.Scooters;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,8 +25,11 @@ public class ScootersController(ISender sender, IScooterQueries scooterQueries) 
         Guid id,
         CancellationToken cancellationToken)
     {
-        var scooter = await scooterQueries.GetById(id, cancellationToken);
-        return scooter is null ? NotFound() : Ok(ScooterDto.FromDomainModel(scooter));
+        var scooter = await scooterQueries.GetById(new ScooterId(id), cancellationToken);
+
+        return scooter.Match<ActionResult<ScooterDto>>(
+            found => Ok(ScooterDto.FromDomainModel(found)),
+            () => NotFound());
     }
 
     [HttpPost]
@@ -32,25 +37,20 @@ public class ScootersController(ISender sender, IScooterQueries scooterQueries) 
         [FromBody] CreateScooterDto request,
         CancellationToken cancellationToken)
     {
-        try
+        var result = await sender.Send(new CreateScooterCommand
         {
-            var scooter = await sender.Send(new CreateScooterCommand
-            {
-                Model = request.Model,
-                SerialNumber = request.SerialNumber,
-                BatteryPercent = request.BatteryPercent,
-                PricePerMinute = request.PricePerMinute,
-                IsAvailable = request.IsAvailable,
-                LastServiceDate = request.LastServiceDate
-            }, cancellationToken);
+            Model = request.Model,
+            SerialNumber = request.SerialNumber,
+            BatteryPercent = request.BatteryPercent,
+            PricePerMinute = request.PricePerMinute,
+            IsAvailable = request.IsAvailable,
+            LastServiceDate = request.LastServiceDate
+        }, cancellationToken);
 
-            var dto = ScooterDto.FromDomainModel(scooter);
-            return CreatedAtAction(nameof(GetScooter), new { id = dto.Id }, dto);
-        }
-        catch (ArgumentException exception)
-        {
-            return Conflict(exception.Message);
-        }
+        return result.Match<ActionResult<ScooterDto>>(
+            scooter => CreatedAtAction(nameof(GetScooter), new { id = scooter.Id.Value },
+                ScooterDto.FromDomainModel(scooter)),
+            error => error.ToObjectResult());
     }
 
     [HttpPut("{id:guid}")]
@@ -59,31 +59,29 @@ public class ScootersController(ISender sender, IScooterQueries scooterQueries) 
         [FromBody] UpdateScooterDto request,
         CancellationToken cancellationToken)
     {
-        try
+        var result = await sender.Send(new UpdateScooterCommand
         {
-            var scooter = await sender.Send(new UpdateScooterCommand
-            {
-                ScooterId = id,
-                Model = request.Model,
-                SerialNumber = request.SerialNumber,
-                BatteryPercent = request.BatteryPercent,
-                PricePerMinute = request.PricePerMinute,
-                IsAvailable = request.IsAvailable,
-                LastServiceDate = request.LastServiceDate
-            }, cancellationToken);
+            ScooterId = id,
+            Model = request.Model,
+            SerialNumber = request.SerialNumber,
+            BatteryPercent = request.BatteryPercent,
+            PricePerMinute = request.PricePerMinute,
+            IsAvailable = request.IsAvailable,
+            LastServiceDate = request.LastServiceDate
+        }, cancellationToken);
 
-            return scooter is null ? NotFound() : Ok(ScooterDto.FromDomainModel(scooter));
-        }
-        catch (ArgumentException exception)
-        {
-            return Conflict(exception.Message);
-        }
+        return result.Match<ActionResult<ScooterDto>>(
+            scooter => Ok(ScooterDto.FromDomainModel(scooter)),
+            error => error.ToObjectResult());
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteScooter(Guid id, CancellationToken cancellationToken)
     {
-        var deleted = await sender.Send(new DeleteScooterCommand { ScooterId = id }, cancellationToken);
-        return deleted ? NoContent() : NotFound();
+        var result = await sender.Send(new DeleteScooterCommand { ScooterId = id }, cancellationToken);
+
+        return result.Match<IActionResult>(
+            _ => NoContent(),
+            error => error.ToObjectResult());
     }
 }
