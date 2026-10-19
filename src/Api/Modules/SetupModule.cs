@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Api.Modules.Errors;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Api.Modules;
 
@@ -6,7 +7,8 @@ public static class SetupModule
 {
     public static void SetupServices(this IServiceCollection services)
     {
-        services.AddControllers();
+        services.AddControllers(options =>
+            options.Filters.Add<ValidationExceptionFilter>());
 
         services.AddCors(options =>
         {

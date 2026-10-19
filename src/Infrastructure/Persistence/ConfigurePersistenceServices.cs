@@ -1,4 +1,5 @@
-﻿using Application.Common.Interfaces;                 // IProductRepository
+using Application.Common.Interfaces.Queries;
+using Application.Common.Interfaces.Repositories;
 using Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -14,39 +15,28 @@ public static class ConfigurePersistenceServices
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // ----------- рядок підключення -------------
         var connectionString = configuration.GetConnectionString("DefaultConnection");
-
-        // NpgsqlDataSource дозволяє включити додаткові можливості (наприклад, dynamic JSON)
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-        dataSourceBuilder.EnableDynamicJson();    // якщо плануєте працювати з jsonb
+        dataSourceBuilder.EnableDynamicJson();
         var dataSource = dataSourceBuilder.Build();
 
-        // ---------- реєстрація DbContext ----------
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(
                     dataSource,
-                    npgsqlOptions =>
-                        npgsqlOptions.MigrationsAssembly(
-                            typeof(ApplicationDbContext).Assembly.FullName))
-                .UseSnakeCaseNamingConvention() // snake_case у PostgreSQL
+                    npgsqlOptions => npgsqlOptions.MigrationsAssembly(
+                        typeof(ApplicationDbContext).Assembly.FullName))
+                .UseSnakeCaseNamingConvention()
                 .ConfigureWarnings(warnings =>
                 {
                     warnings.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning);
                     warnings.Ignore(RelationalEventId.PendingModelChangesWarning);
                 }));
 
-        // ---------- ініціалізатор бази -------------
         services.AddScoped<ApplicationDbContextInitialiser>();
-
-        // ---------- реєстрація репозиторіїв -------
-        services.AddRepositories();
-    }
-
-    // -------------------------------------------------
-    private static void AddRepositories(this IServiceCollection services)
-    {
-        // Реєструємо конкретну реалізацію і інтерфейс одночасно.
-        services.AddScoped<IScooterRepository, ScooterRepository>();
+        services.AddScoped<ScooterRepository>();
+        services.AddScoped<IScooterRepository>(provider =>
+            provider.GetRequiredService<ScooterRepository>());
+        services.AddScoped<IScooterQueries>(provider =>
+            provider.GetRequiredService<ScooterRepository>());
     }
 }
