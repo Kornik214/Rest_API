@@ -37,15 +37,50 @@ public class ScooterRepository : IScooterRepository, IScooterQueries
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<List<Scooter>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Scooter>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _dbContext.Scooters.AsNoTracking().ToListAsync(cancellationToken);
     }
-
-    // Явна реалізація методу з IScooterQueries, щоб повертати Option<Scooter>
     async Task<Option<Scooter>> IScooterQueries.GetByIdAsync(ScooterId id, CancellationToken cancellationToken)
     {
         var scooter = await _dbContext.Scooters.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
         return scooter is null ? Option<Scooter>.None : Option<Scooter>.Some(scooter);
+    }
+
+    public async Task<IReadOnlyList<Scooter>> FilterAsync(
+        string? serialNumber,
+        int? batteryLevelFrom,
+        int? batteryLevelTo,
+        bool? isAvailable,
+        DateTime? lastMaintenanceDateFrom,
+        DateTime? lastMaintenanceDateTo,
+        DateTime? createdAtFrom,
+        DateTime? createdAtTo,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Scooter> query = _dbContext.Scooters.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(serialNumber))
+        {
+            var search = serialNumber.Trim().ToLower();
+            query = query.Where(s => s.SerialNumber.ToLower().Contains(search));
+        }
+
+        if (batteryLevelFrom.HasValue)
+            query = query.Where(s => s.BatteryLevel >= batteryLevelFrom.Value);
+        if (batteryLevelTo.HasValue)
+            query = query.Where(s => s.BatteryLevel <= batteryLevelTo.Value);
+        if (isAvailable.HasValue)
+            query = query.Where(s => s.IsAvailable == isAvailable.Value);
+        if (lastMaintenanceDateFrom.HasValue)
+            query = query.Where(s => s.LastMaintenanceDate >= DateTime.SpecifyKind(lastMaintenanceDateFrom.Value, DateTimeKind.Utc));
+        if (lastMaintenanceDateTo.HasValue)
+            query = query.Where(s => s.LastMaintenanceDate <= DateTime.SpecifyKind(lastMaintenanceDateTo.Value, DateTimeKind.Utc));
+        if (createdAtFrom.HasValue)
+            query = query.Where(s => s.CreatedAt >= DateTime.SpecifyKind(createdAtFrom.Value, DateTimeKind.Utc));
+        if (createdAtTo.HasValue)
+            query = query.Where(s => s.CreatedAt <= DateTime.SpecifyKind(createdAtTo.Value, DateTimeKind.Utc));
+
+        return await query.ToListAsync(cancellationToken);
     }
 }

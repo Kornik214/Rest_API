@@ -29,6 +29,23 @@ public class ScootersController : ControllerBase
         return Ok(response);
     }
 
+    [HttpPost("filter")]
+    public async Task<IActionResult> Filter([FromBody] SearchScootersRequest request, CancellationToken cancellationToken)
+    {
+        var scooters = await _queries.FilterAsync(
+            request.SerialNumber,
+            request.BatteryLevelFrom,
+            request.BatteryLevelTo,
+            request.IsAvailable,
+            request.LastMaintenanceDateFrom,
+            request.LastMaintenanceDateTo,
+            request.CreatedAtFrom,
+            request.CreatedAtTo,
+            cancellationToken);
+
+        return Ok(scooters.Select(ScooterResponse.FromDomain));
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
